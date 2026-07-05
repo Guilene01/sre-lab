@@ -291,4 +291,4 @@ summary:
 - [docs/slo-sla-sli.md](docs/slo-sla-sli.md) -- SLI/SLO/SLA definitions with real per-app examples
 - [docs/error-budget.md](docs/error-budget.md) -- how to calculate error budget burn from an incident
 - [docs/runbooks/](docs/runbooks/) -- diagnostic playbooks (pod crash loops, OOMKill, high latency, DB connection exhaustion, ingress 502s, RDS connection limits)
-- [docs/incident-scenarios/](docs/incident-scenarios/) -- five scripted incidents to practice on, plus an instructor answer key
+- [docs/incident-scenarios/](docs/incident-scenarios/) -- six scripted incidents to practice on, plus an instructor answer key

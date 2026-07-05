@@ -59,7 +59,9 @@ throttle first.
 
 ## Reproduce this in the lab
 
-There's no single chaos script for this one -- it's a systemic scenario.
-Run `drop-db-connection.sh` or `cpu-spike.sh` against two or three apps at
-once, or open several `pg-check` sessions manually, to simulate the shared
-instance getting saturated.
+There's no single chaos script for this one -- it's a systemic scenario
+that needs real connections held open against the shared instance, not
+just an app-level toggle. See the instructor setup for
+`docs/incident-scenarios/06-the-noisy-neighbor.md` (in
+`instructor-answer-keys.md`) for a ready-to-run version that opens 30
+idle-in-transaction connections across two apps' databases.

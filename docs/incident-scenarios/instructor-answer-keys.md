@@ -153,11 +153,72 @@ rather than a one-off spike).
 
 ---
 
-## Bonus scenario (stretch, no dedicated student handout): RDS Connection Limit
+## 6. The Noisy Neighbor (ecommerce + banking, shared RDS instance)
 
-Run 2-3 of the chaos scripts above simultaneously across different apps
-(e.g. `drop-db-connection.sh` on two apps at once, or several manual
-`pg-check` sessions held open) to simulate the shared RDS instance itself
-running low on connections -- see `docs/runbooks/rds-connection-limit.md`.
-Good for a group/whiteboard discussion rather than a hands-on exercise,
-since it requires coordinating chaos across multiple apps at once.
+**Setup (run before students start):** unlike the other 5 scenarios, this
+one isn't a single `scripts/chaos/*.sh` call -- it opens real Postgres
+connections and holds them idle-in-transaction, to genuinely move
+`pg_stat_activity` counts on the shared instance rather than just
+toggling in-app state.
+
+```bash
+RDS_ADDRESS=$(cd terraform && terraform output -raw rds_address)
+
+for app in ecommerce banking; do
+  DB_USER=$(kubectl -n "$app" get secret "${app}-db-credentials" -o jsonpath='{.data.PGUSER}' | base64 -d)
+  DB_NAME=$(kubectl -n "$app" get secret "${app}-db-credentials" -o jsonpath='{.data.PGDATABASE}' | base64 -d)
+  DB_PASS=$(kubectl -n "$app" get secret "${app}-db-credentials" -o jsonpath='{.data.PGPASSWORD}' | base64 -d)
+  for i in $(seq 1 15); do
+    kubectl run "hog-${app}-${i}" --rm -i --restart=Never -n "$app" \
+      --image=postgres:17-alpine --env="PGPASSWORD=${DB_PASS}" \
+      --command -- psql -h "$RDS_ADDRESS" -U "$DB_USER" -d "$DB_NAME" \
+      -c "BEGIN; SELECT pg_sleep(600);" &
+  done
+done
+```
+
+This holds 30 idle-in-transaction connections (15 per app) against a
+`db.t3.micro` instance's modest `max_connections` ceiling for 10 minutes,
+on top of the 5 apps' normal pool traffic -- enough that ecommerce and
+banking (and potentially others) start seeing connection
+timeouts/`/readyz` failures at the same time. If you need to cut it short:
+```bash
+for app in ecommerce banking; do
+  kubectl -n "$app" get pods -o name | grep hog- | xargs -r kubectl -n "$app" delete
+done
+```
+
+**Expected diagnosis path:** Student notices *both* ecommerce and banking
+have trouble at once (not the single-app pattern from "Payday Panic"),
+which is the tell this is instance-level, not app-level. Runs the
+`rds-connection-limit.md` diagnostic query, sees `ecommerce_db` and
+`banking_db` each holding ~15 more connections than normal. Digging into
+`pg_stat_activity`'s `query` and `state` columns (not just the count)
+shows a wall of `state = idle in transaction`, `query: SELECT pg_sleep(600)`
+rows with an old `query_start` -- the signature of a hung transaction, not
+legitimate app traffic (the app's own pool never runs `pg_sleep`).
+
+**Fix:**
+```bash
+kubectl run pg-fix --rm -i --restart=Never -n ecommerce \
+  --image=postgres:17-alpine --env="PGPASSWORD=<master-password>" \
+  --command -- psql -h <rds-address> -U <rds-master-user> -d postgres \
+  -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'idle in transaction' AND query LIKE '%pg_sleep%';"
+```
+(Or, since this is a simulated lab, just delete the `hog-*` pods per the
+"cut it short" command above -- either kills the same underlying
+connections.)
+
+**Grading -- listen for:**
+- Did they check *every* app instead of only the one they were paged for,
+  and recognize "more than one app, same time" as the signature of a
+  shared-resource problem rather than coincidence?
+- Did they look at what the connections were actually doing
+  (`state`/`query`/`query_start`), not just the raw count -- the fix is
+  different for "legitimate but heavy traffic" versus "one hung
+  transaction," and you can't tell which without looking?
+- Postmortem should explain why restarting ecommerce's or banking's own
+  Deployment would do nothing here (the culprit connections don't belong
+  to either app's backend pods at all), and should connect this back to
+  the shared-RDS tradeoff in `docs/architecture.md` -- this is the
+  concrete incident that tradeoff predicts.
