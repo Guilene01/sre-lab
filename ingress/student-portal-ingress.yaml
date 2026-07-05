@@ -4,9 +4,11 @@ metadata:
   name: student-portal
   namespace: student-portal
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: sre-lab
 spec:
-  ingressClassName: nginx
+  ingressClassName: alb
   rules:
     - host: student-portal.lab.local
       http:

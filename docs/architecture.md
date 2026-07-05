@@ -5,11 +5,12 @@
 The SRE lab runs five independent full-stack applications on a single shared
 Amazon EKS cluster, backed by a single shared Amazon RDS for PostgreSQL
 instance. Each app is a self-contained namespace with its own frontend,
-backend, database, and (for food-delivery) an in-cluster Redis cache. A
-single `ingress-nginx` controller, exposed via an AWS Network Load Balancer
-(NLB), routes traffic to all five apps by hostname. Datadog's Agent and
-Cluster Agent run cluster-wide and collect infrastructure metrics, container
-logs, and APM traces from every app.
+backend, database, and (for food-delivery) an in-cluster Redis cache. The
+AWS Load Balancer Controller watches one `Ingress` resource per app and
+provisions a single shared Application Load Balancer (ALB) that routes
+traffic to all five apps by hostname. Datadog's Agent and Cluster Agent run
+cluster-wide and collect infrastructure metrics, container logs, and APM
+traces from every app.
 
 ```mermaid
 flowchart TB
@@ -19,7 +20,7 @@ flowchart TB
 
     subgraph AWS["AWS Account"]
         subgraph VPC["VPC (10.0.0.0/16)"]
-            NLB["AWS NLB\n(created by ingress-nginx Service)"]
+            ALB["AWS ALB\n(one shared ALB, created by the AWS Load\nBalancer Controller via 5 Ingress resources\nin one IngressGroup)"]
 
             subgraph Public["Public subnets"]
                 NAT["NAT Gateway"]
@@ -27,7 +28,7 @@ flowchart TB
 
             subgraph Private["Private subnets"]
                 subgraph EKS["EKS managed node group"]
-                    IngressNginx["ingress-nginx controller"]
+                    ALBController["aws-load-balancer-controller\n(kube-system, IRSA-authenticated)"]
                     DDAgent["Datadog Agent + Cluster Agent\n(DaemonSet)"]
 
                     subgraph NS1["ns: ecommerce"]
@@ -62,9 +63,9 @@ flowchart TB
 
     DDCloud["Datadog\n(student's own account)"]
 
-    Student -->|"https://ecommerce.lab.local etc."| NLB
-    NLB --> IngressNginx
-    IngressNginx --> EcomFE & BankFE & FoodFE & SPFE & STFE
+    Student -->|"http://ecommerce.lab.local etc."| ALB
+    ALB -->|"target-type: ip, direct to pod"| EcomFE & BankFE & FoodFE & SPFE & STFE
+    ALBController -.->|"manages listeners/rules/targets"| ALB
     EcomFE --> EcomBE
     BankFE --> BankBE
     FoodFE --> FoodBE
@@ -91,21 +92,34 @@ flowchart TB
 
 ## Networking
 
-- A single VPC with 2 public subnets (NAT gateway, and the NLB's
-  interfaces) and 2 private subnets (EKS nodes and RDS).
-- `ingress-nginx` is installed once via Helm, exposed as a `Service` of
-  type `LoadBalancer`. On EKS this provisions an AWS NLB automatically --
-  no separate load balancer controller needed. Each app gets one
-  `Ingress` resource routing by hostname (`<app>.lab.local`) to that app's
-  frontend Service.
-- **Enterprise alternative**: production EKS clusters more commonly run
-  the AWS Load Balancer Controller and provision an ALB per Ingress (or a
-  shared ALB via `IngressGroup`), which adds native WAF integration,
-  target-group health checks, and path-based routing without an extra
-  nginx hop. We used the simpler NLB + ingress-nginx path here because it
-  needs no additional IAM roles or controller installation beyond a single
-  `helm install`, which matters when every student is standing this up
-  independently in a training session.
+- A single VPC with 2 public subnets (NAT gateway, and the ALB's
+  interfaces) and 2 private subnets (EKS nodes and RDS). Public subnets
+  are tagged `kubernetes.io/role/elb`, private subnets
+  `kubernetes.io/role/internal-elb` -- how the controller auto-discovers
+  which subnets an internet-facing ALB's interfaces should land in (see
+  `terraform/vpc.tf`).
+- The **AWS Load Balancer Controller** runs in `kube-system`, installed
+  once via Helm (`scripts/setup.sh`) and authenticated via IRSA: an IAM
+  OIDC identity provider trusts the EKS cluster's OIDC issuer, and an IAM
+  role scoped to the `aws-load-balancer-controller` service account is
+  assumed through it (see `terraform/alb-controller.tf`), granting exactly
+  the EC2/ELB permissions in
+  `terraform/policies/aws-load-balancer-controller-iam-policy.json` (the
+  upstream project's published policy) -- nothing broader, and no static
+  IAM user credentials anywhere in the cluster.
+- Each app gets one `Ingress` resource (`ingress/<app>-ingress.yaml`)
+  routing by hostname (`<app>.lab.local`) to that app's frontend Service.
+  All five carry `alb.ingress.kubernetes.io/group.name: sre-lab`, so the
+  controller provisions and shares **one ALB** across all five apps
+  (one set of listener rules, host-routed) instead of five -- otherwise
+  five separate ALBs would roughly 5x the load-balancer cost of the lab
+  for no pedagogical benefit, the same reasoning behind the single shared
+  RDS instance below.
+- `alb.ingress.kubernetes.io/target-type: ip` makes the ALB register pod
+  IPs directly as targets (via the VPC CNI), rather than routing through
+  a NodePort on every node -- one less hop, and Service objects for every
+  app stay plain `ClusterIP` since the ALB talks to pods directly and
+  the Ingress is the only externally-reachable object.
 
 ## Database: Amazon RDS for PostgreSQL
 
@@ -180,7 +194,7 @@ monitor definitions.
 |---|---|
 | One shared RDS instance for all 5 apps | One instance per app/environment |
 | Plaintext password comparison for banking/student-portal demo login | bcrypt/argon2 hashing, real session management |
-| `ingress-nginx` + NLB | AWS Load Balancer Controller + ALB, likely with WAF |
+| One shared ALB (`IngressGroup`) across all 5 apps | One ALB per app/environment, plus AWS WAF attached |
 | Chaos endpoints reachable over the public Ingress | Chaos hooks gated behind a separate internal-only port/network policy |
 | Terraform state stored locally | Remote state (S3 + DynamoDB lock table) |
 | No TLS on the Ingress | ACM certificate + HTTPS redirect |

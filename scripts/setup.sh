@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # End-to-end setup: terraform apply -> configure kubectl -> build/push images ->
 # create per-app databases on the shared RDS instance -> create k8s secrets ->
-# deploy every app -> install ingress-nginx -> print next steps.
+# deploy every app -> install the AWS Load Balancer Controller and Ingresses ->
+# print next steps.
 #
 # Requires: terraform, aws cli (configured), kubectl, docker, helm.
 # RDS has no public access, so per-app databases are created via a short-lived
@@ -20,10 +21,12 @@ terraform apply -auto-approve
 
 CLUSTER_NAME=$(terraform output -raw cluster_name)
 REGION=$(terraform output -raw region)
+VPC_ID=$(terraform output -raw vpc_id)
 RDS_ADDRESS=$(terraform output -raw rds_address)
 RDS_PORT=$(terraform output -raw rds_port)
 RDS_MASTER_USER=$(terraform output -raw rds_master_username)
 RDS_MASTER_PASSWORD=$(terraform output -raw rds_master_password)
+ALB_CONTROLLER_ROLE_ARN=$(terraform output -raw alb_controller_role_arn)
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
@@ -90,19 +93,25 @@ for app in "${APPS[@]}"; do
   done
 done
 
-echo "==> 8/8 install ingress-nginx and apply Ingress resources"
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx >/dev/null 2>&1 || true
+echo "==> 8/8 install the AWS Load Balancer Controller and apply Ingress resources"
+helm repo add eks https://aws.github.io/eks-charts >/dev/null 2>&1 || true
 helm repo update >/dev/null
-helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-  --namespace ingress-nginx --create-namespace \
+helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  --namespace kube-system \
+  --set clusterName="$CLUSTER_NAME" \
+  --set region="$REGION" \
+  --set vpcId="$VPC_ID" \
+  --set serviceAccount.create=true \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="$ALB_CONTROLLER_ROLE_ARN" \
   --wait --timeout=5m
 kubectl apply -f "$REPO_ROOT/ingress/"
 
 echo ""
-echo "==> Waiting for the NLB hostname (can take a couple of minutes on a fresh cluster)..."
+echo "==> Waiting for the ALB hostname (can take a couple of minutes on a fresh cluster)..."
 for i in $(seq 1 30); do
-  NLB_HOST=$(kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
-  [ -n "$NLB_HOST" ] && break
+  ALB_HOST=$(kubectl -n ecommerce get ingress ecommerce -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+  [ -n "$ALB_HOST" ] && break
   sleep 10
 done
 
@@ -110,12 +119,13 @@ echo ""
 echo "================================================================"
 echo " Setup complete."
 echo "================================================================"
-echo "NLB hostname: ${NLB_HOST:-<pending, run: kubectl -n ingress-nginx get svc ingress-nginx-controller>}"
+echo "ALB hostname: ${ALB_HOST:-<pending, run: kubectl -n ecommerce get ingress ecommerce>}"
 echo ""
-echo "Resolve the NLB hostname to an IP and add it to /etc/hosts:"
-echo "  dig +short ${NLB_HOST:-<nlb-hostname>} | head -1"
+echo "All 5 apps share this one ALB (routed by hostname via an IngressGroup)."
+echo "Resolve the ALB hostname to an IP and add it to /etc/hosts:"
+echo "  dig +short ${ALB_HOST:-<alb-hostname>} | head -1"
 echo ""
 echo "Then append (see docs/student-guide.md for the exact snippet):"
-echo "  <nlb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local"
+echo "  <alb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local"
 echo ""
 echo "Next: install the Datadog Agent with your own API key -- see docs/student-guide.md."

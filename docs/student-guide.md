@@ -35,22 +35,22 @@ From the repo root:
 
 This runs `terraform apply`, configures `kubectl`, builds and pushes all
 10 container images to ECR, provisions a database + least-privilege user
-per app on the shared RDS instance, deploys every app, and installs
-`ingress-nginx`. It prints an NLB hostname at the end -- keep that handy
-for the next step. Expect this to take 15-20 minutes, mostly waiting on
-the EKS cluster and NLB to come up.
+per app on the shared RDS instance, deploys every app, and installs the
+AWS Load Balancer Controller. It prints an ALB hostname at the end -- keep
+that handy for the next step. Expect this to take 15-20 minutes, mostly
+waiting on the EKS cluster and ALB to come up.
 
 ## 4. Point your browser at the apps
 
-The NLB has no friendly DNS name, so resolve it to an IP and add entries
-to your hosts file:
+All five apps share one ALB (routed by hostname), which has no friendly
+DNS name, so resolve it to an IP and add entries to your hosts file:
 
 ```bash
 # macOS/Linux
-dig +short <nlb-hostname-from-setup-output> | head -1
+dig +short <alb-hostname-from-setup-output> | head -1
 
 # then add this line to /etc/hosts (needs sudo):
-<nlb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local
+<alb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local
 ```
 
 On Windows, edit `C:\Windows\System32\drivers\etc\hosts` as Administrator

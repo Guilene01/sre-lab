@@ -1,4 +1,4 @@
-# Flat VPC: 2 public subnets (NAT + NLB) and 2 private subnets (EKS nodes + RDS)
+# Flat VPC: 2 public subnets (NAT + ALB) and 2 private subnets (EKS nodes + RDS)
 # across 2 AZs. No modules, no locals, everything destroy/recreate friendly.
 
 resource "aws_vpc" "main" {

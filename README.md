@@ -23,7 +23,7 @@ up, what each app does, and how to break it.
 terraform/         VPC, EKS, node group, RDS, ECR -- flat, no modules (see terraform/*.tf)
 namespaces/         Namespace + ResourceQuota + LimitRange per app (namespaces/<app>.yaml)
 apps/<app>/         frontend/ (React+Vite+Tailwind), backend/ (Node+Express), k8s/ (Deployments/Services/HPA)
-ingress/           One Ingress resource per app, routed by hostname via ingress-nginx
+ingress/           One Ingress resource per app, routed by hostname via a shared ALB
 datadog/           helm-values.yaml, dashboards/ (importable JSON), monitors/ (importable JSON)
 scripts/           setup.sh, teardown.sh, chaos/ (per-failure-mode scripts)
 docs/              architecture.md, slo-sla-sli.md, error-budget.md, runbooks/, incident-scenarios/, student-guide.md
@@ -59,16 +59,17 @@ apps/<app>/
 
 ```bash
 # 1. Provision AWS infra, build/push all 10 images to ECR, create per-app
-#    databases on the shared RDS instance, deploy all 5 apps, install
-#    ingress-nginx. Takes 15-20 minutes, mostly waiting on EKS/NLB.
+#    databases on the shared RDS instance, deploy all 5 apps, install the
+#    AWS Load Balancer Controller. Takes 15-20 minutes, mostly waiting on
+#    EKS/ALB.
 ./scripts/setup.sh
 
-# 2. Resolve the printed NLB hostname to an IP
-dig +short <nlb-hostname> | head -1
+# 2. Resolve the printed ALB hostname to an IP (all 5 apps share one ALB)
+dig +short <alb-hostname> | head -1
 
 # 3. Add to /etc/hosts (or C:\Windows\System32\drivers\etc\hosts on Windows,
 #    as Administrator)
-<nlb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local
+<alb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local
 
 # 4. Visit the apps
 open http://ecommerce.lab.local
@@ -115,8 +116,9 @@ with exact commands for every step below.
 6. Deploys food-delivery's in-cluster Redis.
 7. Applies every app's `k8s/*.yaml` manifests (via `envsubst`, to inject
    the ECR registry URL and image tag).
-8. Installs `ingress-nginx` via Helm and applies `ingress/*.yaml`, then
-   polls for the AWS NLB hostname and prints it.
+8. Installs the AWS Load Balancer Controller via Helm (authenticated via
+   an IRSA role Terraform already created) and applies `ingress/*.yaml`,
+   then polls for the shared ALB's hostname and prints it.
 
 ### Connecting `kubectl` manually
 
@@ -258,8 +260,9 @@ the failure modes this lab exists to practice diagnosing.
 This provisions a real EKS cluster, 2-5 `t3.medium` nodes, a NAT gateway,
 and an RDS instance -- roughly **$150-250/month** if left running
 continuously. Always run `./scripts/teardown.sh` when you're done for the
-day; it deletes the ingress-nginx `Service` first (so its NLB is released
-cleanly), uninstalls Datadog, deletes the app namespaces, and then runs
+day; it deletes the Ingress resources first (so the shared ALB is released
+cleanly by the AWS Load Balancer Controller), uninstalls Datadog, deletes
+the app namespaces, and then runs
 `terraform destroy`. Double-check the AWS console afterward for anything
 orphaned (EC2 Load Balancers, NAT Gateways/EIPs, ECR repos, RDS) -- exact
 checklist is printed at the end of the teardown script.
@@ -276,7 +279,7 @@ summary:
 |---|---|
 | One shared RDS instance for all 5 apps | One instance per app/environment |
 | Plaintext password comparison for banking/student-portal demo login | bcrypt/argon2 hashing, real session management |
-| `ingress-nginx` + NLB | AWS Load Balancer Controller + ALB, likely with WAF |
+| One shared ALB (`IngressGroup`) across all 5 apps | One ALB per app/environment, plus AWS WAF attached |
 | Chaos endpoints reachable over the public Ingress | Chaos hooks gated behind a separate internal-only port/network policy |
 | Terraform state stored locally | Remote state (S3 + DynamoDB lock table) |
 | No TLS on the Ingress | ACM certificate + HTTPS redirect |

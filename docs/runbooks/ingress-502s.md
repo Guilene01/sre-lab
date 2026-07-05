@@ -2,15 +2,19 @@
 
 ## Symptoms
 
-- Browsing to `http://<app>.lab.local` returns a gateway error from nginx
-  instead of the app itself. In this lab, a Service with **zero ready
-  endpoints** (confirmed by testing) returns `503 Service Temporarily
-  Unavailable`; a `502 Bad Gateway` specifically means nginx found an
-  endpoint but the connection to it was refused or reset mid-request
-  (e.g. the pod crashed between being marked ready and the request
-  arriving). Both point to the same place to look.
-- This is an `ingress-nginx` -> Service -> pod problem, not an
-  application-code problem -- the app never got the request.
+- Browsing to `http://<app>.lab.local` returns a gateway error from the
+  ALB instead of the app itself. In this lab, a target group with **zero
+  healthy targets** (confirmed by testing) makes the ALB return `503
+  Service Temporarily Unavailable`; a `502 Bad Gateway` specifically means
+  the ALB found a registered target but the connection to it was refused
+  or reset mid-request (e.g. the pod crashed between being registered
+  healthy and the request arriving). Both point to the same place to
+  look.
+- Since every app's Ingress uses `alb.ingress.kubernetes.io/target-type:
+  ip`, the ALB targets pod IPs directly (the AWS Load Balancer Controller
+  watches each Service's endpoints to keep the target group in sync) --
+  this is an ALB target-group -> pod problem, not an application-code
+  problem -- the app never got the request.
 
 ## Diagnostic commands
 
@@ -22,8 +26,8 @@ kubectl -n <namespace> get endpoints <app>-frontend
 kubectl -n <namespace> get pods
 kubectl -n <namespace> describe pod <pod>
 
-# Check the ingress-nginx controller's own logs for the specific error
-kubectl -n ingress-nginx logs deployment/ingress-nginx-controller --tail=100 | grep <app>
+# Check the AWS Load Balancer Controller's own logs for the specific error
+kubectl -n kube-system logs deployment/aws-load-balancer-controller --tail=100 | grep <app>
 
 # Confirm the Ingress resource itself is pointing at the right Service/port
 kubectl -n <namespace> get ingress <app> -o yaml
@@ -33,13 +37,16 @@ kubectl -n <namespace> get ingress <app> -o yaml
 
 - **Zero ready replicas** -- the most common cause. If every pod behind
   `<app>-frontend` is failing its readiness probe (or was just scaled to
-  0), the Service has no endpoints and nginx returns 503 immediately.
+  0), the target group has no healthy targets and the ALB returns 503
+  immediately.
 - **Wrong port** in the Ingress or Service (`targetPort` not matching the
   container's actual listening port -- frontends in this lab listen on
   `8080`, backends on `4000`).
-- **`ingress-nginx` controller itself down or mid-restart** -- rare, but
-  check `kubectl -n ingress-nginx get pods` if *every* app 502s
-  simultaneously.
+- **AWS Load Balancer Controller itself down or mid-restart** -- rare,
+  but check `kubectl -n kube-system get pods -l app.kubernetes.io/name=aws-load-balancer-controller`
+  if *every* app 502s simultaneously -- since all 5 apps share one ALB,
+  a controller outage (or an ALB/target-group misconfiguration) can take
+  all of them down at once, unlike a per-app ALB.
 
 ## Fix
 
