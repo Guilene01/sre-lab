@@ -1,0 +1,79 @@
+{
+  "title": "SRE Lab - student-portal",
+  "description": "Golden signals for the student-portal service (frontend + backend).",
+  "layout_type": "ordered",
+  "is_read_only": false,
+  "notify_list": [],
+  "template_variables": [
+    { "name": "env", "prefix": "env", "default": "lab" }
+  ],
+  "widgets": [
+    {
+      "definition": {
+        "title": "Request Throughput",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:trace.express.request.hits{service:student-portal-backend,$env}.as_rate()",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Error Rate",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:trace.express.request.errors{service:student-portal-backend,$env}.as_rate()",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "p95 Latency",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "p95:trace.express.request.duration{service:student-portal-backend,$env}",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Pod Memory Usage (Saturation)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:kubernetes.memory.usage{kube_deployment:student-portal-backend,$env} by {pod_name}",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Pod Restarts",
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "sum:kubernetes.containers.restarts{kube_deployment:student-portal-backend,$env}"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Recent Error Logs",
+        "type": "log_stream",
+        "query": "service:student-portal-backend status:error",
+        "columns": ["core_host", "core_service", "tags.status"]
+      }
+    }
+  ]
+}

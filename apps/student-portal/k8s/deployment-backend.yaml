@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: student-portal-backend
+  namespace: student-portal
+  labels:
+    app: student-portal-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: student-portal-backend
+  template:
+    metadata:
+      labels:
+        app: student-portal-backend
+        tags.datadoghq.com/env: "lab"
+        tags.datadoghq.com/service: "student-portal-backend"
+        tags.datadoghq.com/version: "1.0.0"
+      annotations:
+        ad.datadoghq.com/student-portal-backend.logs: '[{"source":"nodejs","service":"student-portal-backend"}]'
+    spec:
+      containers:
+        - name: student-portal-backend
+          image: ${ECR_REGISTRY}/sre-lab/student-portal-backend:${IMAGE_TAG}
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - configMapRef:
+                name: student-portal-backend-config
+            - secretRef:
+                name: student-portal-db-credentials
+          env:
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15

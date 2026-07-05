@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: support-tickets-backend
+  namespace: support-tickets
+  labels:
+    app: support-tickets-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: support-tickets-backend
+  template:
+    metadata:
+      labels:
+        app: support-tickets-backend
+        tags.datadoghq.com/env: "lab"
+        tags.datadoghq.com/service: "support-tickets-backend"
+        tags.datadoghq.com/version: "1.0.0"
+      annotations:
+        ad.datadoghq.com/support-tickets-backend.logs: '[{"source":"nodejs","service":"support-tickets-backend"}]'
+    spec:
+      containers:
+        - name: support-tickets-backend
+          image: ${ECR_REGISTRY}/sre-lab/support-tickets-backend:${IMAGE_TAG}
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - configMapRef:
+                name: support-tickets-backend-config
+            - secretRef:
+                name: support-tickets-db-credentials
+          env:
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15

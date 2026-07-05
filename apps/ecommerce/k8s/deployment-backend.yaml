@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecommerce-backend
+  namespace: ecommerce
+  labels:
+    app: ecommerce-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ecommerce-backend
+  template:
+    metadata:
+      labels:
+        app: ecommerce-backend
+        tags.datadoghq.com/env: "lab"
+        tags.datadoghq.com/service: "ecommerce-backend"
+        tags.datadoghq.com/version: "1.0.0"
+      annotations:
+        ad.datadoghq.com/ecommerce-backend.logs: '[{"source":"nodejs","service":"ecommerce-backend"}]'
+    spec:
+      containers:
+        - name: ecommerce-backend
+          image: ${ECR_REGISTRY}/sre-lab/ecommerce-backend:${IMAGE_TAG}
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - configMapRef:
+                name: ecommerce-backend-config
+            - secretRef:
+                name: ecommerce-db-credentials
+          env:
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15

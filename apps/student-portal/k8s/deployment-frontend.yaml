@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: student-portal-frontend
+  namespace: student-portal
+  labels:
+    app: student-portal-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: student-portal-frontend
+  template:
+    metadata:
+      labels:
+        app: student-portal-frontend
+        tags.datadoghq.com/env: "lab"
+        tags.datadoghq.com/service: "student-portal-frontend"
+        tags.datadoghq.com/version: "1.0.0"
+      annotations:
+        ad.datadoghq.com/student-portal-frontend.logs: '[{"source":"nginx","service":"student-portal-frontend"}]'
+    spec:
+      containers:
+        - name: student-portal-frontend
+          image: ${ECR_REGISTRY}/sre-lab/student-portal-frontend:${IMAGE_TAG}
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 15

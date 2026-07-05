@@ -1,0 +1,13 @@
+{
+  "name": "[SRE Lab] Pod restarts detected",
+  "type": "metric alert",
+  "query": "sum(last_5m):sum:kubernetes.containers.restarts{env:lab} by {kube_deployment}.as_count() > 2",
+  "message": "{{#is_alert}}{{kube_deployment.name}} has restarted more than twice in the last 5 minutes -- likely a crash loop.{{/is_alert}}\n{{#is_warning}}{{kube_deployment.name}} has restarted at least once in the last 5 minutes.{{/is_warning}}\n{{#is_recovery}}{{kube_deployment.name}} has stopped restarting.{{/is_recovery}}\n\nSee docs/runbooks/pod-crash-loop.md.\n@slack-sre-lab-alerts",
+  "tags": ["env:lab", "team:sre-lab"],
+  "options": {
+    "thresholds": { "critical": 2, "warning": 1 },
+    "notify_no_data": false,
+    "evaluation_delay": 60,
+    "renotify_interval": 0
+  }
+}

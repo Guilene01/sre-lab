@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: student-portal-backend
+  namespace: student-portal
+spec:
+  selector:
+    app: student-portal-backend
+  ports:
+    - port: 4000
+      targetPort: 4000

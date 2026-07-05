@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: support-tickets-backend
+  namespace: support-tickets
+spec:
+  selector:
+    app: support-tickets-backend
+  ports:
+    - port: 4000
+      targetPort: 4000

@@ -1,0 +1,49 @@
+# Values for the official Datadog Helm chart (datadog/datadog).
+# Each student installs this against their OWN Datadog account -- nothing
+# here contains a real API key. See docs/student-guide.md for the exact
+# `kubectl create secret` + `helm install` commands.
+
+datadog:
+  apiKeyExistingSecret: datadog-secret # key: api-key, created by the student
+  site: datadoghq.com # change to datadoghq.eu if your trial org is EU-hosted
+
+  # APM / tracing
+  apm:
+    portEnabled: true
+    socketEnabled: true
+
+  # Log collection from every pod in the cluster
+  logs:
+    enabled: true
+    containerCollectAll: true
+
+  # Required so backends (running as separate containers, not sidecars)
+  # can reach the agent over the pod's host IP to submit traces.
+  env:
+    - name: DD_APM_NON_LOCAL_TRAFFIC
+      value: "true"
+
+  # Infra + container metrics
+  processAgent:
+    enabled: true
+  containerImage:
+    tag: "7"
+
+  kubelet:
+    tlsVerify: true
+
+clusterAgent:
+  enabled: true
+  metricsProvider:
+    enabled: true # required for the Datadog-backed HPA custom metrics, optional stretch goal
+
+agents:
+  containers:
+    agent:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 300m
+          memory: 512Mi

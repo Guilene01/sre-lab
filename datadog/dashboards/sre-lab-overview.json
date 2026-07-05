@@ -1,0 +1,100 @@
+{
+  "title": "SRE Lab Overview",
+  "description": "Four golden signals (latency, traffic, errors, saturation) across all five lab apps.",
+  "layout_type": "ordered",
+  "is_read_only": false,
+  "notify_list": [],
+  "template_variables": [
+    { "name": "env", "prefix": "env", "default": "lab" }
+  ],
+  "widgets": [
+    {
+      "definition": {
+        "title": "Request Throughput by Service",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:trace.express.request.hits{$env} by {service}.as_rate()",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Error Rate by Service",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:trace.express.request.errors{$env} by {service}.as_rate()",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "p95 Latency by Service",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "p95:trace.express.request.duration{$env} by {service}",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Pod CPU Usage by Deployment",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:kubernetes.cpu.usage.total{$env} by {kube_deployment}",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Pod Memory Usage by Deployment",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:kubernetes.memory.usage{$env} by {kube_deployment}",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Pod Restarts by Deployment",
+        "type": "toplist",
+        "requests": [
+          {
+            "q": "sum:kubernetes.containers.restarts{$env} by {kube_deployment}.as_count()"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Cluster Nodes Ready",
+        "type": "query_value",
+        "requests": [
+          { "q": "avg:kubernetes_state.node.count{$env}" }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Error Logs Across All Apps",
+        "type": "log_stream",
+        "query": "status:error",
+        "columns": ["core_host", "core_service", "tags.status"]
+      }
+    }
+  ]
+}

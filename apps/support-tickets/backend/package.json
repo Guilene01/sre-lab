@@ -1,0 +1,17 @@
+{
+  "name": "support-tickets-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node -r ./src/tracer.js src/index.js",
+    "dev": "node -r ./src/tracer.js --watch src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dd-trace": "^5.0.0",
+    "express": "^5.2.1",
+    "pg": "^8.22.0"
+  }
+}

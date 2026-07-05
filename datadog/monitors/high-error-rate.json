@@ -1,0 +1,13 @@
+{
+  "name": "[SRE Lab] High error rate",
+  "type": "metric alert",
+  "query": "sum(last_10m):( sum:trace.express.request.errors{env:lab} by {service}.as_rate() / sum:trace.express.request.hits{env:lab} by {service}.as_rate() ) * 100 > 5",
+  "message": "{{#is_alert}}Error rate for {{service.name}} is above 5% over the last 10 minutes.{{/is_alert}}\n{{#is_warning}}Error rate for {{service.name}} is above 1%.{{/is_warning}}\n{{#is_recovery}}Error rate for {{service.name}} has recovered.{{/is_recovery}}\n\nSee docs/runbooks/high-latency.md and docs/slo-sla-sli.md for the SLO this backs.\n@slack-sre-lab-alerts",
+  "tags": ["env:lab", "team:sre-lab"],
+  "options": {
+    "thresholds": { "critical": 5, "warning": 1 },
+    "notify_no_data": false,
+    "evaluation_delay": 60,
+    "renotify_interval": 0
+  }
+}

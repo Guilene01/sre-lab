@@ -1,0 +1,13 @@
+{
+  "name": "[SRE Lab] Memory saturation approaching container limit",
+  "type": "metric alert",
+  "query": "avg(last_10m):avg:kubernetes.memory.usage{env:lab} by {kube_deployment} > 220000000",
+  "message": "{{#is_alert}}{{kube_deployment.name}} is using more than 220MB of memory -- close to the 256Mi container limit set in its Deployment. Expect an OOMKill soon.{{/is_alert}}\n{{#is_warning}}{{kube_deployment.name}} memory usage is climbing.{{/is_warning}}\n{{#is_recovery}}{{kube_deployment.name}} memory usage is back to normal.{{/is_recovery}}\n\nSee docs/runbooks/oomkill.md.\n@slack-sre-lab-alerts",
+  "tags": ["env:lab", "team:sre-lab"],
+  "options": {
+    "thresholds": { "critical": 220000000, "warning": 180000000 },
+    "notify_no_data": false,
+    "evaluation_delay": 60,
+    "renotify_interval": 0
+  }
+}

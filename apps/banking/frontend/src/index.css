@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-meridian-navy: #0f1729;
+  --color-meridian-charcoal: #1f2430;
+  --color-meridian-gold: #c9a227;
+  --color-meridian-mist: #f7f6f3;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-meridian-mist);
+  color: var(--color-meridian-navy);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center border border-current px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] transition-colors duration-200 hover:bg-white hover:text-meridian-navy;
+}
+
+.btn-solid {
+  @apply inline-flex items-center justify-center bg-meridian-navy px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white transition-opacity hover:opacity-90;
+}

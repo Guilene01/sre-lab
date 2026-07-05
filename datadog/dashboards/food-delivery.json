@@ -1,0 +1,79 @@
+{
+  "title": "SRE Lab - food-delivery",
+  "description": "Golden signals for the food-delivery service (frontend + backend).",
+  "layout_type": "ordered",
+  "is_read_only": false,
+  "notify_list": [],
+  "template_variables": [
+    { "name": "env", "prefix": "env", "default": "lab" }
+  ],
+  "widgets": [
+    {
+      "definition": {
+        "title": "Request Throughput",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:trace.express.request.hits{service:food-delivery-backend,$env}.as_rate()",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Error Rate",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:trace.express.request.errors{service:food-delivery-backend,$env}.as_rate()",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "p95 Latency",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "p95:trace.express.request.duration{service:food-delivery-backend,$env}",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Pod Memory Usage (Saturation)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:kubernetes.memory.usage{kube_deployment:food-delivery-backend,$env} by {pod_name}",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Pod Restarts",
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "sum:kubernetes.containers.restarts{kube_deployment:food-delivery-backend,$env}"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Recent Error Logs",
+        "type": "log_stream",
+        "query": "service:food-delivery-backend status:error",
+        "columns": ["core_host", "core_service", "tags.status"]
+      }
+    }
+  ]
+}
