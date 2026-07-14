@@ -41,7 +41,7 @@ for app in "${APPS[@]}"; do
   for part in backend frontend; do
     image="sre-lab/${app}-${part}"
     echo "    building ${image}:${IMAGE_TAG}"
-    docker build -t "${ECR_REGISTRY}/${image}:${IMAGE_TAG}" "$REPO_ROOT/apps/${app}/${part}"
+    docker build --platform linux/amd64 -t "${ECR_REGISTRY}/${image}:${IMAGE_TAG}" "$REPO_ROOT/apps/${app}/${part}"
     docker push "${ECR_REGISTRY}/${image}:${IMAGE_TAG}"
   done
 done

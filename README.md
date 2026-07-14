@@ -66,10 +66,16 @@ apps/<app>/
 
 # 2. Resolve the printed ALB hostname to an IP (all 5 apps share one ALB)
 dig +short <alb-hostname> | head -1
+#    On Windows, if `dig` isn't installed, use nslookup instead:
+#    nslookup <alb-hostname>
 
 # 3. Add to /etc/hosts (or C:\Windows\System32\drivers\etc\hosts on Windows,
 #    as Administrator)
 <alb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local
+
+#    On Windows, edit the hosts file from an elevated (Run as Administrator)
+#    PowerShell -- regular/non-admin shells can't write to it:
+#    Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`n<alb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local"
 
 # 4. Visit the apps
 open http://ecommerce.lab.local
