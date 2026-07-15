@@ -6,10 +6,14 @@
 # Usage: memory-spike.sh <app> [mb]
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+LAB_DOMAIN="${LAB_DOMAIN:-$(cat "$REPO_ROOT/.lab-domain" 2>/dev/null || true)}"
+: "${LAB_DOMAIN:?run scripts/setup.sh first (or export LAB_DOMAIN=<alb-ip-with-dashes>.sslip.io)}"
+
 APP="${1:?usage: memory-spike.sh <app> [mb]}"
 MB="${2:-300}"
 
-curl -sf -X POST "http://${APP}.lab.local/api/chaos/memory-spike" \
+curl -sf -X POST "http://${APP}.${LAB_DOMAIN}/api/chaos/memory-spike" \
   -H "Content-Type: application/json" \
   -d "{\"mb\": ${MB}}"
 echo ""

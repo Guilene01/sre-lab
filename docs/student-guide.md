@@ -42,27 +42,33 @@ waiting on the EKS cluster and ALB to come up.
 
 ## 4. Point your browser at the apps
 
-All five apps share one ALB (routed by hostname), which has no friendly
-DNS name, so resolve it to an IP and add entries to your hosts file:
+All five apps share one ALB (routed by hostname). There's no manual DNS or
+hosts-file step: `setup.sh` resolves the ALB's real IP itself and builds
+URLs on [sslip.io](https://sslip.io), a public wildcard DNS service where
+any hostname of the form `<name>.<ip-with-dots-replaced-by-dashes>.sslip.io`
+resolves straight to that IP. At the end of its run, `setup.sh` prints the
+five ready-to-use URLs -- something like
+`http://ecommerce.<your-lab-domain>` for each app, where `<your-lab-domain>`
+is your own ALB IP written in `sslip.io` form.
+
+That domain suffix is also written to `.lab-domain` in the repo root, which
+the chaos scripts under `scripts/chaos/` read automatically. If you lose
+the `setup.sh` output, reprint it any time:
 
 ```bash
-# macOS/Linux
-dig +short <alb-hostname-from-setup-output> | head -1
-
-# then add this line to /etc/hosts (needs sudo):
-<alb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local
+cat .lab-domain
+# or build a specific app's URL directly:
+echo "http://ecommerce.$(cat .lab-domain)"
 ```
 
-On Windows, edit `C:\Windows\System32\drivers\etc\hosts` as Administrator
-with the same line.
+Now visit each app in your browser, substituting your own domain suffix
+for `<your-lab-domain>`:
 
-Now visit each app in your browser:
-
-- http://ecommerce.lab.local
-- http://banking.lab.local
-- http://food-delivery.lab.local
-- http://student-portal.lab.local
-- http://support-tickets.lab.local
+- http://ecommerce.\<your-lab-domain>
+- http://banking.\<your-lab-domain>
+- http://food-delivery.\<your-lab-domain>
+- http://student-portal.\<your-lab-domain>
+- http://support-tickets.\<your-lab-domain>
 
 Demo login credentials (banking and student-portal) use password
 `demo123` -- see each app's `sql/init.sql` for the exact usernames.

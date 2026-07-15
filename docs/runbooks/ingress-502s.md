@@ -2,7 +2,7 @@
 
 ## Symptoms
 
-- Browsing to `http://<app>.lab.local` returns a gateway error from the
+- Browsing to `http://<app>.$(cat .lab-domain)` returns a gateway error from the
   ALB instead of the app itself. In this lab, a target group with **zero
   healthy targets** (confirmed by testing) makes the ALB return `503
   Service Temporarily Unavailable`; a `502 Bad Gateway` specifically means
@@ -74,6 +74,6 @@ kubectl -n <namespace> get ingress <app> -o yaml
 
 ```bash
 scripts/chaos/scale-to-zero.sh <namespace> <app>-frontend
-curl -o /dev/null -w "%{http_code}\n" http://<app>.lab.local/    # 503
+curl -o /dev/null -w "%{http_code}\n" http://<app>.$(cat .lab-domain)/    # 503
 kubectl -n <namespace> scale deployment/<app>-frontend --replicas=2
 ```

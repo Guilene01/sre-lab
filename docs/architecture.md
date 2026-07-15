@@ -63,7 +63,7 @@ flowchart TB
 
     DDCloud["Datadog\n(student's own account)"]
 
-    Student -->|"http://ecommerce.lab.local etc."| ALB
+    Student -->|"http://ecommerce.$(cat .lab-domain) etc."| ALB
     ALB -->|"target-type: ip, direct to pod"| EcomFE & BankFE & FoodFE & SPFE & STFE
     ALBController -.->|"manages listeners/rules/targets"| ALB
     EcomFE --> EcomBE
@@ -108,7 +108,9 @@ flowchart TB
   upstream project's published policy) -- nothing broader, and no static
   IAM user credentials anywhere in the cluster.
 - Each app gets one `Ingress` resource (`ingress/<app>-ingress.yaml`)
-  routing by hostname (`<app>.lab.local`) to that app's frontend Service.
+  routing by hostname (`<app>.${LAB_DOMAIN}`, an sslip.io wildcard DNS name
+  derived from the ALB's IP -- see `scripts/setup.sh`) to that app's
+  frontend Service.
   All five carry `alb.ingress.kubernetes.io/group.name: sre-lab`, so the
   controller provisions and shares **one ALB** across all five apps
   (one set of listener rules, host-routed) instead of five -- otherwise

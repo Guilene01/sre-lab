@@ -62,6 +62,51 @@ resource "aws_eks_access_policy_association" "root_admin" {
   }
 }
 
+resource "aws_eks_access_entry" "guilene" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/guilene"
+}
+
+resource "aws_eks_access_policy_association" "guilene_admin" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/guilene"
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+}
+
+# Assumed by IAM users (see trust policy) instead of granting cluster access
+# to individual user principals directly.
+resource "aws_iam_role" "eks_admin" {
+  name = "${var.cluster_name}-eks-admin-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/guilene" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_eks_access_entry" "eks_admin_role" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = aws_iam_role.eks_admin.arn
+}
+
+resource "aws_eks_access_policy_association" "eks_admin_role" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = aws_iam_role.eks_admin.arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+}
+
 data "aws_caller_identity" "current" {}
 
 resource "aws_iam_role" "eks_node" {

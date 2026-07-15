@@ -37,7 +37,7 @@ up, then comes back.
 <details>
 <summary>Hint 2</summary>
 
-`curl http://support-tickets.lab.local/api/chaos` shows current
+`curl http://support-tickets.$(cat .lab-domain)/api/chaos` shows current
 failure-injection state on whichever pod answers the request -- note that
 with 2 replicas, only one of them may be affected.
 </details>

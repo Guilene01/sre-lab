@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: ecommerce.lab.local
+    - host: ecommerce.${LAB_DOMAIN}
       http:
         paths:
           - path: /

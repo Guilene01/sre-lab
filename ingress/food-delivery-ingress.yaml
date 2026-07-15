@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: food-delivery.lab.local
+    - host: food-delivery.${LAB_DOMAIN}
       http:
         paths:
           - path: /

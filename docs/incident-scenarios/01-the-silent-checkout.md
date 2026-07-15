@@ -16,7 +16,7 @@ green-ish but something feels off. Figure out what's wrong and fix it.
 1. Open the `ecommerce` dashboard in Datadog. What do you see in p95
    latency and error rate over the last 15 minutes?
 2. Reproduce the customer experience yourself: place an order at
-   `http://ecommerce.lab.local`.
+   `http://ecommerce.$(cat .lab-domain)`.
 3. Form a hypothesis, confirm it, fix it.
 4. Write a one-paragraph postmortem: what broke, how you found it, how you
    fixed it, and one thing you'd do to prevent it next time.
@@ -27,7 +27,7 @@ green-ish but something feels off. Figure out what's wrong and fix it.
 <summary>Hint 1</summary>
 
 Check whether the app has any built-in failure-injection state active:
-`curl http://ecommerce.lab.local/api/chaos`
+`curl http://ecommerce.$(cat .lab-domain)/api/chaos`
 </details>
 
 <details>

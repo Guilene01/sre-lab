@@ -14,7 +14,7 @@
 ```bash
 # Is readiness actually failing, and why?
 kubectl -n <namespace> get pods
-curl http://<app>.lab.local/readyz
+curl http://<app>.$(cat .lab-domain)/readyz
 
 # Pool exhaustion is usually visible as a spike in open connections.
 # From inside the cluster (RDS has no public access):
@@ -69,5 +69,5 @@ spike.
 ```bash
 scripts/chaos/drop-db-connection.sh <app>
 # readyz starts failing immediately; reset with:
-curl -X POST http://<app>.lab.local/api/chaos/reset
+curl -X POST http://<app>.$(cat .lab-domain)/api/chaos/reset
 ```

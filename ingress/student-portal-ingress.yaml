@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: student-portal.lab.local
+    - host: student-portal.${LAB_DOMAIN}
       http:
         paths:
           - path: /

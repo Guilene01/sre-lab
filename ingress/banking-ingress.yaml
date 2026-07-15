@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: banking.lab.local
+    - host: banking.${LAB_DOMAIN}
       http:
         paths:
           - path: /

@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: support-tickets.lab.local
+    - host: support-tickets.${LAB_DOMAIN}
       http:
         paths:
           - path: /

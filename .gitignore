@@ -13,6 +13,9 @@ dist/
 .env
 .env.local
 
+# Per-deployment ALB hostname written by scripts/setup.sh
+.lab-domain
+
 # OS
 .DS_Store
 Thumbs.db

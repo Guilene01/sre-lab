@@ -61,38 +61,27 @@ apps/<app>/
 # 1. Provision AWS infra, build/push all 10 images to ECR, create per-app
 #    databases on the shared RDS instance, deploy all 5 apps, install the
 #    AWS Load Balancer Controller. Takes 15-20 minutes, mostly waiting on
-#    EKS/ALB.
+#    EKS/ALB. Prints the five app URLs at the end -- no /etc/hosts editing
+#    needed, they resolve on their own via sslip.io.
 ./scripts/setup.sh
 
-# 2. Resolve the printed ALB hostname to an IP (all 5 apps share one ALB)
-dig +short <alb-hostname> | head -1
-#    On Windows, if `dig` isn't installed, use nslookup instead:
-#    nslookup <alb-hostname>
+# 2. Visit the apps (the domain is also saved to .lab-domain at the repo
+#    root, in case you lose the setup.sh output)
+open http://ecommerce.$(cat .lab-domain)
 
-# 3. Add to /etc/hosts (or C:\Windows\System32\drivers\etc\hosts on Windows,
-#    as Administrator)
-<alb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local
-
-#    On Windows, edit the hosts file from an elevated (Run as Administrator)
-#    PowerShell -- regular/non-admin shells can't write to it:
-#    Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`n<alb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local"
-
-# 4. Visit the apps
-open http://ecommerce.lab.local
-
-# 5. Install the Datadog Agent with your own API key
+# 3. Install the Datadog Agent with your own API key
 kubectl create namespace datadog
 kubectl create secret generic datadog-secret --namespace datadog \
   --from-literal api-key=<your-datadog-api-key>
 helm repo add datadog https://helm.datadoghq.com && helm repo update
 helm install datadog datadog/datadog --namespace datadog -f datadog/helm-values.yaml
 
-# 6. Break things
+# 4. Break things
 ./scripts/chaos/inject-latency.sh ecommerce 3000
 ./scripts/chaos/memory-spike.sh support-tickets 300
 ./scripts/chaos/kill-random-pod.sh banking
 
-# 7. Tear down when done -- this costs real AWS money while running
+# 5. Tear down when done -- this costs real AWS money while running
 ./scripts/teardown.sh
 ```
 
@@ -141,12 +130,12 @@ The infrastructure is just the stage -- the actual exercise is the loop
 below. Work through it once end-to-end, then repeat with a different app
 and a different failure mode.
 
-1. **Deploy and poke at the apps.** After `setup.sh` and the `/etc/hosts`
-   step, confirm all five load and complete one real user action in each:
-   add to cart and check out in ecommerce, log in and check a balance in
-   banking, place an order in food-delivery, view grades in
-   student-portal, file a ticket in support-tickets.
-2. **Install Datadog and import the dashboards/monitors** (step 5 in
+1. **Deploy and poke at the apps.** After `setup.sh` completes, confirm all
+   five load and complete one real user action in each: add to cart and
+   check out in ecommerce, log in and check a balance in banking, place an
+   order in food-delivery, view grades in student-portal, file a ticket in
+   support-tickets.
+2. **Install Datadog and import the dashboards/monitors** (step 3 in
    [Quick start](#quick-start) above, or in full in
    [docs/student-guide.md](docs/student-guide.md) sections 5-6): each
    app's dashboard from `datadog/dashboards/<app>.json`, plus

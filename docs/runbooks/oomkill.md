@@ -35,7 +35,7 @@ kubectl -n <namespace> top pod <pod>
 1. If it's the chaos hook, reset it -- new pods won't retain the injected
    memory:
    ```bash
-   curl -X POST http://<app>.lab.local/api/chaos/reset
+   curl -X POST http://<app>.$(cat .lab-domain)/api/chaos/reset
    ```
    (Kubernetes already restarted the killed pod automatically; this just
    stops it from happening again on the new pod if you re-trigger the

@@ -13,7 +13,7 @@ at first glance.
 
 ## Your task
 
-1. Try logging in at `http://banking.lab.local` and loading the dashboard.
+1. Try logging in at `http://banking.$(cat .lab-domain)` and loading the dashboard.
    What actually happens?
 2. Check the pods: `kubectl -n banking get pods`. Are they `Running`? Are
    they `Ready`?
@@ -27,7 +27,7 @@ at first glance.
 <details>
 <summary>Hint 1</summary>
 
-`curl http://banking.lab.local/readyz` -- what does it say, and why?
+`curl http://banking.$(cat .lab-domain)/readyz` -- what does it say, and why?
 </details>
 
 <details>

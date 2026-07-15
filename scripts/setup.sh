@@ -105,7 +105,16 @@ helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-contro
   --set serviceAccount.name=aws-load-balancer-controller \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="$ALB_CONTROLLER_ROLE_ARN" \
   --wait --timeout=5m
-kubectl apply -f "$REPO_ROOT/ingress/"
+
+# Apps are reached at http://<app>.<alb-ip-with-dashes>.sslip.io -- sslip.io
+# resolves any "*.<ip>.sslip.io" name straight to that IP, so no one needs to
+# touch /etc/hosts or own a domain. The ALB doesn't exist yet on a fresh
+# cluster, so the first apply uses a placeholder host and gets replaced below
+# once we know the ALB's real IP.
+LAB_DOMAIN="pending.invalid"
+for manifest in "$REPO_ROOT"/ingress/*.yaml; do
+  LAB_DOMAIN="$LAB_DOMAIN" envsubst '${LAB_DOMAIN}' < "$manifest" | kubectl apply -f -
+done
 
 echo ""
 echo "==> Waiting for the ALB hostname (can take a couple of minutes on a fresh cluster)..."
@@ -115,17 +124,43 @@ for i in $(seq 1 30); do
   sleep 10
 done
 
+if [ -z "$ALB_HOST" ]; then
+  echo "ALB hostname didn't appear in time -- check 'kubectl -n ecommerce describe ingress ecommerce' and re-run this script."
+  exit 1
+fi
+
+echo "==> Resolving the ALB's IP via the AWS API (works the same on every OS, no dig/nslookup needed)"
+ALB_ARN=$(aws elbv2 describe-load-balancers --region "$REGION" \
+  --query "LoadBalancers[?DNSName=='${ALB_HOST}'].LoadBalancerArn" --output text)
+# Regular (non-static-IP) ALBs don't expose their IP via describe-load-balancers --
+# LoadBalancerAddresses is only populated for static-IP/BYOIP load balancers. Their
+# actual IP lives on the ENIs AWS creates for the ALB in each subnet instead.
+ALB_LB_ID="${ALB_ARN#*loadbalancer/}"
+ALB_IP=$(aws ec2 describe-network-interfaces --region "$REGION" \
+  --filters "Name=description,Values=ELB ${ALB_LB_ID}" \
+  --query "NetworkInterfaces[0].Association.PublicIp" --output text)
+LAB_DOMAIN="${ALB_IP//./-}.sslip.io"
+
+echo "==> Re-applying Ingress resources with the real hostnames (*.${LAB_DOMAIN})"
+for manifest in "$REPO_ROOT"/ingress/*.yaml; do
+  LAB_DOMAIN="$LAB_DOMAIN" envsubst '${LAB_DOMAIN}' < "$manifest" | kubectl apply -f -
+done
+
+echo "$LAB_DOMAIN" > "$REPO_ROOT/.lab-domain"
+
 echo ""
 echo "================================================================"
 echo " Setup complete."
 echo "================================================================"
-echo "ALB hostname: ${ALB_HOST:-<pending, run: kubectl -n ecommerce get ingress ecommerce>}"
-echo ""
 echo "All 5 apps share this one ALB (routed by hostname via an IngressGroup)."
-echo "Resolve the ALB hostname to an IP and add it to /etc/hosts:"
-echo "  dig +short ${ALB_HOST:-<alb-hostname>} | head -1"
+echo "No /etc/hosts edit needed -- these URLs resolve on their own via sslip.io:"
 echo ""
-echo "Then append (see docs/student-guide.md for the exact snippet):"
-echo "  <alb-ip>  ecommerce.lab.local banking.lab.local food-delivery.lab.local student-portal.lab.local support-tickets.lab.local"
+echo "  http://ecommerce.${LAB_DOMAIN}"
+echo "  http://banking.${LAB_DOMAIN}"
+echo "  http://food-delivery.${LAB_DOMAIN}"
+echo "  http://student-portal.${LAB_DOMAIN}"
+echo "  http://support-tickets.${LAB_DOMAIN}"
+echo ""
+echo "(That domain is also saved to .lab-domain for the chaos scripts to use.)"
 echo ""
 echo "Next: install the Datadog Agent with your own API key -- see docs/student-guide.md."

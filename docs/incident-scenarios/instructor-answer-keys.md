@@ -20,7 +20,7 @@ both elevated on the ecommerce dashboard, confirms by placing an order
 (slow, sometimes fails), checks `GET /api/chaos` and sees
 `latencyMs: 4000, errorRate: 0.2`.
 
-**Fix:** `curl -X POST http://ecommerce.lab.local/api/chaos/reset`
+**Fix:** `curl -X POST http://ecommerce.$(cat .lab-domain)/api/chaos/reset`
 
 **Grading -- listen for:**
 - Did they check the dashboard *before* guessing at code?
@@ -42,12 +42,12 @@ scripts/chaos/drop-db-connection.sh banking
 DB-dependent readiness path directly, but dashboard calls will fail once
 readiness fails and the pod is pulled from the Service, or requests to
 the affected pod return 503 from `/readyz`-gated logic if checked
-directly). Student runs `curl http://banking.lab.local/readyz`, sees
+directly). Student runs `curl http://banking.$(cat .lab-domain)/readyz`, sees
 `503` with `reason: db connection dropped (chaos)`, checks
 `kubectl -n banking get pods` and sees pods go `0/1 Ready` after the
 readiness probe's `failureThreshold` is exceeded (~30s).
 
-**Fix:** `curl -X POST http://banking.lab.local/api/chaos/reset`
+**Fix:** `curl -X POST http://banking.$(cat .lab-domain)/api/chaos/reset`
 
 **Grading -- listen for:**
 - Did they check `/readyz` specifically, rather than just restarting

@@ -8,7 +8,7 @@ of the primary database.
 
 ## Briefing (read this, then start)
 
-A diner places an order on `http://food-delivery.lab.local` and the order
+A diner places an order on `http://food-delivery.$(cat .lab-domain)` and the order
 tracking page just spins on "Fetching status..." forever, or the status
 never advances past "Order Placed." Orders are still being created
 successfully -- it's specifically the status tracking that's broken.
@@ -16,7 +16,7 @@ successfully -- it's specifically the status tracking that's broken.
 ## Your task
 
 1. Place an order and watch the tracking page. What's actually happening
-   in the Network tab / via `curl http://food-delivery.lab.local/api/orders/<id>/status`?
+   in the Network tab / via `curl http://food-delivery.$(cat .lab-domain)/api/orders/<id>/status`?
 2. This app has a dependency the others don't -- find it in
    `docs/architecture.md` and check its pods.
 3. Fix it, then confirm the tracking page recovers on its own (no redeploy

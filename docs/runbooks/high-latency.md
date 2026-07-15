@@ -42,10 +42,10 @@ simulated payment processor with an artificial 150-350ms delay by design
 
 ## Fix
 
-1. Check `GET http://<app>.lab.local/api/chaos` first -- if a chaos hook is
+1. Check `GET http://<app>.$(cat .lab-domain)/api/chaos` first -- if a chaos hook is
    active, reset it:
    ```bash
-   curl -X POST http://<app>.lab.local/api/chaos/reset
+   curl -X POST http://<app>.$(cat .lab-domain)/api/chaos/reset
    ```
 2. If it's real load, confirm the HPA is scaling:
    ```bash
