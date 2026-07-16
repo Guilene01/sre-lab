@@ -15,11 +15,6 @@
 # ALB exists), then scripts/setup.sh re-applies with it set true once the
 # ALB is confirmed up.
 
-variable "dns_zone_name" {
-  description = "Existing Route 53 public hosted zone the lab apps are created under -- set this in terraform.tfvars (see terraform.tfvars.example), no default since it's specific to whoever is standing up the lab"
-  type        = string
-}
-
 variable "create_dns_records" {
   description = "Whether to look up the ALB and create its DNS records. False on the first apply (before the ALB exists); scripts/setup.sh re-applies with this set true once the ALB is up."
   type        = bool

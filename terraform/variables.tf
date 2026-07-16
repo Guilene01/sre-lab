@@ -16,6 +16,11 @@ variable "environment" {
   default     = "lab"
 }
 
+variable "dns_zone_name" {
+  description = "Existing Route 53 public hosted zone the lab apps are created under -- set this in terraform.tfvars (see terraform.tfvars.example), no default since it's specific to whoever is standing up the lab"
+  type        = string
+}
+
 variable "vpc_cidr" {
   description = "CIDR block for the lab VPC"
   type        = string
