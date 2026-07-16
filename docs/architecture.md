@@ -108,9 +108,11 @@ flowchart TB
   upstream project's published policy) -- nothing broader, and no static
   IAM user credentials anywhere in the cluster.
 - Each app gets one `Ingress` resource (`ingress/<app>-ingress.yaml`)
-  routing by hostname (`<app>.${LAB_DOMAIN}`, an sslip.io wildcard DNS name
-  derived from the ALB's IP -- see `scripts/setup.sh`) to that app's
-  frontend Service.
+  routing by hostname (`<app>.<your-domain>`, a Route 53 alias record
+  pointing at the ALB by name -- see `terraform/dns.tf`) to that app's
+  frontend Service. `<your-domain>` is whatever `dns_zone_name` is set to
+  in `terraform/terraform.tfvars` (see
+  `terraform/terraform.tfvars.example`).
   All five carry `alb.ingress.kubernetes.io/group.name: sre-lab`, so the
   controller provisions and shares **one ALB** across all five apps
   (one set of listener rules, host-routed) instead of five -- otherwise

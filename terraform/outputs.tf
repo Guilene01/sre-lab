@@ -42,6 +42,11 @@ output "rds_master_password" {
   sensitive = true
 }
 
+output "lab_domain" {
+  description = "Domain all lab app URLs live under, e.g. <app>.<lab_domain>"
+  value       = var.dns_zone_name
+}
+
 output "alb_controller_role_arn" {
   description = "IAM role ARN for the aws-load-balancer-controller service account (IRSA), consumed by scripts/setup.sh"
   value       = aws_iam_role.alb_controller.arn

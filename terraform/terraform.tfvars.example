@@ -1,0 +1,13 @@
+# Copy this file to terraform.tfvars and fill in your own values, then run
+# scripts/setup.sh (or terraform apply) as usual -- terraform.tfvars is
+# gitignored so your domain/region never gets committed.
+
+# Required: an existing Route 53 public hosted zone you control. The lab
+# creates five alias records directly under this zone
+# (ecommerce.<dns_zone_name>, banking.<dns_zone_name>, etc.), so pick a
+# domain where those five names aren't needed for anything else.
+dns_zone_name = "example.com"
+
+# Optional overrides -- defaults live in terraform/variables.tf.
+# region       = "us-east-1"
+# cluster_name = "sre-lab"

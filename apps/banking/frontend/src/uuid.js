@@ -1,5 +1,5 @@
 // crypto.randomUUID() only exists in secure contexts (HTTPS or localhost).
-// This lab is served over plain HTTP via *.sslip.io, so we need a fallback
+// This lab is served over plain HTTP via *.gamela.shop, so we need a fallback
 // that works in an insecure context too.
 export function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {

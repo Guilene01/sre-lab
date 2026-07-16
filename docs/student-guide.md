@@ -43,17 +43,16 @@ waiting on the EKS cluster and ALB to come up.
 ## 4. Point your browser at the apps
 
 All five apps share one ALB (routed by hostname). There's no manual DNS or
-hosts-file step: `setup.sh` resolves the ALB's real IP itself and builds
-URLs on [sslip.io](https://sslip.io), a public wildcard DNS service where
-any hostname of the form `<name>.<ip-with-dots-replaced-by-dashes>.sslip.io`
-resolves straight to that IP. At the end of its run, `setup.sh` prints the
-five ready-to-use URLs -- something like
-`http://ecommerce.<your-lab-domain>` for each app, where `<your-lab-domain>`
-is your own ALB IP written in `sslip.io` form.
+hosts-file step: each app's URL is a real Route 53 subdomain
+(`<app>.<your-domain>`, where `<your-domain>` is whatever you set
+`dns_zone_name` to in `terraform/terraform.tfvars` -- see
+[terraform/terraform.tfvars.example](../terraform/terraform.tfvars.example)),
+aliased to the ALB. `setup.sh` creates these DNS records itself once the ALB
+is up, so the URLs work immediately, no copying an IP or editing anything
+locally.
 
 That domain suffix is also written to `.lab-domain` in the repo root, which
-the chaos scripts under `scripts/chaos/` read automatically. If you lose
-the `setup.sh` output, reprint it any time:
+the chaos scripts under `scripts/chaos/` read automatically:
 
 ```bash
 cat .lab-domain
@@ -61,14 +60,13 @@ cat .lab-domain
 echo "http://ecommerce.$(cat .lab-domain)"
 ```
 
-Now visit each app in your browser, substituting your own domain suffix
-for `<your-lab-domain>`:
+Now visit each app in your browser (substituting your own domain):
 
-- http://ecommerce.\<your-lab-domain>
-- http://banking.\<your-lab-domain>
-- http://food-delivery.\<your-lab-domain>
-- http://student-portal.\<your-lab-domain>
-- http://support-tickets.\<your-lab-domain>
+- http://ecommerce.\<your-domain\>
+- http://banking.\<your-domain\>
+- http://food-delivery.\<your-domain\>
+- http://student-portal.\<your-domain\>
+- http://support-tickets.\<your-domain\>
 
 Demo login credentials (banking and student-portal) use password
 `demo123` -- see each app's `sql/init.sql` for the exact usernames.

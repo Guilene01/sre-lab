@@ -5,7 +5,7 @@
 
 datadog:
   apiKeyExistingSecret: datadog-secret # key: api-key, created by the student
-  site: datadoghq.com # change to datadoghq.eu if your trial org is EU-hosted
+  site: us5.datadoghq.com # change to match your trial org's site (see Organization Settings > API Keys in Datadog)
 
   # APM / tracing
   apm:

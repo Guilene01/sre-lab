@@ -4,6 +4,7 @@ terraform/*.tfstate
 terraform/*.tfstate.backup
 terraform/*.tfplan
 terraform/nul
+terraform/terraform.tfvars
 
 # Node
 node_modules/

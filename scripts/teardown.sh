@@ -32,6 +32,8 @@ echo "==> 4/4 terraform destroy"
 cd "$TF_DIR"
 terraform destroy -auto-approve
 
+rm -f "$REPO_ROOT/.lab-domain"
+
 echo ""
 echo "================================================================"
 echo " Teardown complete."

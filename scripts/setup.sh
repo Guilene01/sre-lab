@@ -27,8 +27,10 @@ RDS_PORT=$(terraform output -raw rds_port)
 RDS_MASTER_USER=$(terraform output -raw rds_master_username)
 RDS_MASTER_PASSWORD=$(terraform output -raw rds_master_password)
 ALB_CONTROLLER_ROLE_ARN=$(terraform output -raw alb_controller_role_arn)
+LAB_DOMAIN=$(terraform output -raw lab_domain)
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+echo "$LAB_DOMAIN" > "$REPO_ROOT/.lab-domain"
 
 echo "==> 2/8 configure kubectl"
 aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$REGION"
@@ -93,7 +95,7 @@ for app in "${APPS[@]}"; do
   done
 done
 
-echo "==> 8/8 install the AWS Load Balancer Controller and apply Ingress resources"
+echo "==> 8/8 install the AWS Load Balancer Controller, apply Ingress, and create DNS records"
 helm repo add eks https://aws.github.io/eks-charts >/dev/null 2>&1 || true
 helm repo update >/dev/null
 helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
@@ -106,18 +108,12 @@ helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-contro
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="$ALB_CONTROLLER_ROLE_ARN" \
   --wait --timeout=5m
 
-# Apps are reached at http://<app>.<alb-ip-with-dashes>.sslip.io -- sslip.io
-# resolves any "*.<ip>.sslip.io" name straight to that IP, so no one needs to
-# touch /etc/hosts or own a domain. The ALB doesn't exist yet on a fresh
-# cluster, so the first apply uses a placeholder host and gets replaced below
-# once we know the ALB's real IP.
-LAB_DOMAIN="pending.invalid"
 for manifest in "$REPO_ROOT"/ingress/*.yaml; do
   LAB_DOMAIN="$LAB_DOMAIN" envsubst '${LAB_DOMAIN}' < "$manifest" | kubectl apply -f -
 done
 
 echo ""
-echo "==> Waiting for the ALB hostname (can take a couple of minutes on a fresh cluster)..."
+echo "==> Waiting for the ALB to come up (can take a couple of minutes on a fresh cluster)..."
 for i in $(seq 1 30); do
   ALB_HOST=$(kubectl -n ecommerce get ingress ecommerce -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
   [ -n "$ALB_HOST" ] && break
@@ -129,38 +125,25 @@ if [ -z "$ALB_HOST" ]; then
   exit 1
 fi
 
-echo "==> Resolving the ALB's IP via the AWS API (works the same on every OS, no dig/nslookup needed)"
-ALB_ARN=$(aws elbv2 describe-load-balancers --region "$REGION" \
-  --query "LoadBalancers[?DNSName=='${ALB_HOST}'].LoadBalancerArn" --output text)
-# Regular (non-static-IP) ALBs don't expose their IP via describe-load-balancers --
-# LoadBalancerAddresses is only populated for static-IP/BYOIP load balancers. Their
-# actual IP lives on the ENIs AWS creates for the ALB in each subnet instead.
-ALB_LB_ID="${ALB_ARN#*loadbalancer/}"
-ALB_IP=$(aws ec2 describe-network-interfaces --region "$REGION" \
-  --filters "Name=description,Values=ELB ${ALB_LB_ID}" \
-  --query "NetworkInterfaces[0].Association.PublicIp" --output text)
-LAB_DOMAIN="${ALB_IP//./-}.sslip.io"
-
-echo "==> Re-applying Ingress resources with the real hostnames (*.${LAB_DOMAIN})"
-for manifest in "$REPO_ROOT"/ingress/*.yaml; do
-  LAB_DOMAIN="$LAB_DOMAIN" envsubst '${LAB_DOMAIN}' < "$manifest" | kubectl apply -f -
-done
-
-echo "$LAB_DOMAIN" > "$REPO_ROOT/.lab-domain"
+# The Route 53 alias records (dns.tf) look the ALB up by tag, which only
+# works once it exists -- that's why create_dns_records defaults to false on
+# the terraform apply in step 1 and only gets turned on here.
+echo "==> Creating Route 53 DNS records for the ALB (*.${LAB_DOMAIN})"
+cd "$TF_DIR"
+terraform apply -auto-approve -var="create_dns_records=true"
+cd "$REPO_ROOT"
 
 echo ""
 echo "================================================================"
 echo " Setup complete."
 echo "================================================================"
 echo "All 5 apps share this one ALB (routed by hostname via an IngressGroup)."
-echo "No /etc/hosts edit needed -- these URLs resolve on their own via sslip.io:"
+echo "DNS is live in Route 53 -- these URLs work immediately, no manual step:"
 echo ""
 echo "  http://ecommerce.${LAB_DOMAIN}"
 echo "  http://banking.${LAB_DOMAIN}"
 echo "  http://food-delivery.${LAB_DOMAIN}"
 echo "  http://student-portal.${LAB_DOMAIN}"
 echo "  http://support-tickets.${LAB_DOMAIN}"
-echo ""
-echo "(That domain is also saved to .lab-domain for the chaos scripts to use.)"
 echo ""
 echo "Next: install the Datadog Agent with your own API key -- see docs/student-guide.md."

@@ -48,21 +48,33 @@ apps/<app>/
 ## Prerequisites
 
 - `terraform`, `aws` CLI (configured with credentials for the target AWS
-  account), `kubectl`, `docker`, and `helm` installed locally.
+  account), `kubectl`, `docker`, `helm`, and `envsubst` (from `gettext`;
+  not preinstalled on macOS -- `brew install gettext && brew link --force
+  gettext`) installed locally.
 - An AWS account you're comfortable spending ~$150-250/month on if left
   running (see [Cost](#cost) below) -- there is no free tier here, this
   provisions real EKS/RDS/NAT infrastructure.
+- An existing Route 53 **public hosted zone in that same AWS account** (any
+  domain you control, already set up in Route 53 -- this lab looks it up by
+  name, it won't create one for you). It creates five DNS records directly
+  under it (`ecommerce.<your-domain>`, `banking.<your-domain>`, etc.), so
+  pick a zone where those five names aren't needed for anything else.
 - Your own free [Datadog](https://www.datadoghq.com/) trial account. Nothing
   in this repo contains a real API key; each student/user brings their own.
 
 ## Quick start
 
 ```bash
+# 0. Point the lab at your own Route 53 hosted zone
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+# then edit terraform/terraform.tfvars and set dns_zone_name to your domain
+
 # 1. Provision AWS infra, build/push all 10 images to ECR, create per-app
 #    databases on the shared RDS instance, deploy all 5 apps, install the
-#    AWS Load Balancer Controller. Takes 15-20 minutes, mostly waiting on
-#    EKS/ALB. Prints the five app URLs at the end -- no /etc/hosts editing
-#    needed, they resolve on their own via sslip.io.
+#    AWS Load Balancer Controller, and create the Route 53 DNS records.
+#    Takes 15-20 minutes, mostly waiting on EKS/ALB. Prints the five app
+#    URLs at the end -- no /etc/hosts editing needed, they're real DNS
+#    names that work immediately.
 ./scripts/setup.sh
 
 # 2. Visit the apps (the domain is also saved to .lab-domain at the repo
